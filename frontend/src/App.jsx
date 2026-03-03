@@ -9,7 +9,20 @@ import OrderDetail         from './components/OrderDetail'
 import NewOrderToast       from './components/NewOrderToast'
 import useRealtimeOrders   from './hooks/useRealtimeOrders'
 
-const API_BASE = import.meta.env.VITE_API_URL || '/api'
+// API_BASE determines where frontend should send HTTP requests
+// - by default we use the relative `/api` path which Vercel rewrites
+// - if the user supplies VITE_API_URL (e.g. in staging), we ensure it
+//   always ends with `/api` so endpoints resolve correctly and avoid
+//   accidentally requesting the SPA HTML.
+function normalizeBase(url) {
+  if (!url) return '/api';
+  // strip trailing slash
+  url = url.replace(/\/+$/, '');
+  // ensure '/api' suffix
+  if (!url.endsWith('/api')) url += '/api';
+  return url;
+}
+const API_BASE = normalizeBase(import.meta.env.VITE_API_URL);
 
 async function apiFetch(path, opts = {}) {
   const token = localStorage.getItem('accessToken')
@@ -21,11 +34,22 @@ async function apiFetch(path, opts = {}) {
       ...(opts.headers || {}),
     },
   })
+
+  // read raw text first so we can attempt JSON parsing safely
+  const text = await res.text()
+
   if (!res.ok) {
-    const body = await res.json().catch(() => ({}))
+    let body = {}
+    try { body = JSON.parse(text) } catch {}
     throw new Error(body.message || `HTTP ${res.status}`)
   }
-  return res.json()
+
+  // successful, try parse JSON but fall back to raw text
+  try {
+    return JSON.parse(text)
+  } catch {
+    return text
+  }
 }
 
 // ── Placeholder for pages not yet built ────────────────────────────────────
