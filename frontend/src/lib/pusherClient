@@ -1,0 +1,47 @@
+// client-side Pusher singleton — loaded via CDN (window.Pusher) to avoid
+// Rollup/Vite TDZ bundling issues that cause white screen in production.
+// Returns null when VITE_PUSHER_KEY is not configured so the app renders normally.
+
+// No static import — Pusher is loaded via <script> tag in index.html
+
+let _client = undefined; // undefined = not yet created; null = disabled
+
+export function getPusherClient() {
+  if (_client !== undefined) return _client;
+
+  const key     = import.meta.env.VITE_PUSHER_KEY;
+  const cluster = import.meta.env.VITE_PUSHER_CLUSTER;
+
+  if (!key) {
+    console.warn('[Pusher] VITE_PUSHER_KEY not set — real-time updates disabled.');
+    _client = null;
+    return null;
+  }
+
+  // Pusher loaded from CDN into window.Pusher
+  const PusherSDK = window.Pusher;
+  if (!PusherSDK) {
+    console.warn('[Pusher] window.Pusher not available — CDN script may not have loaded.');
+    _client = null;
+    return null;
+  }
+
+  _client = new PusherSDK(key, {
+    cluster,
+    forceTLS:     true,
+    authEndpoint: '/api/pusher/auth',
+    auth: {
+      headers: {
+        // read the token at call time so it reflects the current session
+        get Authorization() {
+          return `Bearer ${localStorage.getItem('accessToken') || ''}`;
+        },
+      },
+    },
+  });
+
+  return _client;
+}
+
+// default export kept for backwards-compat — also lazy
+export default { get client() { return getPusherClient(); } };

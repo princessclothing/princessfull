@@ -1,0 +1,25 @@
+/**
+ * backend/api/index.js
+ * ---------------------
+ * Vercel Serverless Function entry point.
+ *
+ * O Vercel detecta arquivos em /api como Serverless Functions e os expõe
+ * como handlers HTTP. Este arquivo importa o app Express e o exporta como
+ * um handler compatível com o runtime Vercel Node.js.
+ *
+ * O roteamento é definido em vercel.json:
+ *   /api/*  → este arquivo
+ *   /*      → frontend/dist/index.html (React SPA)
+ */
+
+// Garante que as variáveis de ambiente sejam carregadas localmente
+// (em produção, o Vercel injeta as env vars automaticamente)
+if (process.env.NODE_ENV !== 'production') {
+  // eslint-disable-next-line global-require
+  require('dotenv').config({ path: require('path').resolve(__dirname, '../.env') });
+}
+
+const app = require('../src/index');
+
+// Vercel espera um handler no formato (req, res) ou um app Express exportado
+module.exports = app;

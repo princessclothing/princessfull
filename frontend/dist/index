@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FulfillPanel</title>
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <!-- Load Pusher from CDN to avoid Rollup TDZ bundling issues -->
+    <script src="https://js.pusher.com/8.4/pusher.min.js"></script>
+    <script type="module" crossorigin src="/assets/index-O46DCuYO.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-DXhM12CG.css">
+  </head>
+  <body class="bg-gray-50 text-gray-900 antialiased">
+    <div id="root"></div>
+
+  </body>
+</html>

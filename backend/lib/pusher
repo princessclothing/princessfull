@@ -1,0 +1,44 @@
+// server-side Pusher helper
+// instantiate once using environment variables configured via Vercel
+
+const Pusher = require('pusher');
+
+const pusher = new Pusher({
+  appId:   process.env.PUSHER_APP_ID,
+  key:     process.env.PUSHER_KEY,
+  secret:  process.env.PUSHER_SECRET,
+  cluster: process.env.PUSHER_CLUSTER,
+  useTLS:  true,
+});
+
+// FIX: use private channel so only authenticated users can subscribe.
+// Pusher enforces this — unauthenticated clients are rejected by pusher.com.
+// Channel name includes shopId for multi-tenant isolation.
+const CHANNEL = (shopId) => shopId ? `private-orders-${shopId}` : 'private-orders';
+
+function triggerNewOrder(orderData) {
+  return pusher.trigger(CHANNEL(orderData.shopId), 'new-order', orderData);
+}
+
+function triggerOrderUpdated(orderData) {
+  return pusher.trigger(CHANNEL(orderData.shopId), 'order-updated', orderData);
+}
+
+function triggerOrderCancelled(orderData) {
+  return pusher.trigger(CHANNEL(orderData.shopId), 'order-cancelled', orderData);
+}
+
+// authenticate() is called by POST /api/pusher/auth
+// socketId and channelName come from the Pusher client SDK
+function authenticate(socketId, channelName) {
+  return pusher.authorizeChannel(socketId, channelName);
+}
+
+module.exports = {
+  pusher,
+  triggerNewOrder,
+  triggerOrderUpdated,
+  triggerOrderCancelled,
+  authenticate,
+  CHANNEL,
+};
