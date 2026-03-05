@@ -358,19 +358,21 @@ const OrderDetail = ({ order, onPrintLabel, onCancel, onUpdate, onLabelUpload })
             </div>
 
             {/* DANFE */}
-            <div className="flex items-center justify-between gap-3">
-              <label className="text-xs text-gray-600 font-medium w-36 shrink-0">DANFE (NF-e)</label>
-              <div className="flex-1">
-                <label className="flex items-center gap-2 cursor-pointer border border-dashed border-gray-200 rounded-lg px-3 py-1.5 hover:border-purple-400 hover:bg-purple-50/30 transition-colors">
-                  <span className="text-gray-400 text-xs">{files.danfe ? files.danfe.name : 'Escolher arquivo'}</span>
-                  <input
-                    type="file"
-                    accept=".pdf,image/*"
-                    className="hidden"
-                    onChange={e => handleFileChange('danfe', e)}
-                  />
-                </label>
-              </div>
+            <div className="space-y-1.5">
+              <p className="text-xs text-gray-600 font-medium">DANFE (NF-e)</p>
+              {order.danfeUrl ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-emerald-600 font-medium">✅ NF-e disponível</span>
+                  <button
+                    onClick={() => window.open(order.danfeUrl, '_blank', 'noopener,noreferrer')}
+                    className="px-3 py-1 rounded-md text-xs font-medium bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
+                  >
+                    📑 Abrir DANFE
+                  </button>
+                </div>
+              ) : (
+                <p className="text-xs text-gray-400 italic">NF-e não emitida ou ainda não sincronizada.</p>
+              )}
             </div>
 
             {/* Outros */}

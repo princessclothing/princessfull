@@ -296,6 +296,23 @@ async function upsertOrder(order) {
 exports.authenticate = authenticate;
 
 /**
+ * Fetch linkPDF (DANFE) from a NF-e ID.
+ * Returns the linkPDF string or null.
+ */
+exports.fetchDanfeUrl = async (nfId) => {
+  const token = await authenticate();
+  try {
+    const resp = await axios.get(`${process.env.BLING_API_URL}/nfe/${nfId}`, {
+      headers: { Authorization: `Bearer ${token}`, 'enable-jwt': '1' },
+    });
+    return resp.data?.data?.linkPDF || null;
+  } catch (err) {
+    console.error(`[Bling] Error fetching NF-e ${nfId}:`, err.message);
+    return null;
+  }
+};
+
+/**
  * Fetch complete order details by ID (includes products, addresses, etc.)
  */
 exports.fetchOrderDetails = async (orderId) => {

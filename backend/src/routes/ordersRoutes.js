@@ -86,6 +86,7 @@ function rowToOrder(row) {
     numeroLoja:     row.numero_loja  || null,
     rastreio:       row.rastreio     || null,
     labelUrl:       row.label_url    || null,
+    danfeUrl:       row.danfe_url    || null,
     refCliente:     row.shop_id || '—',
     dataIntegracao: row.data_integracao
       ? new Date(row.data_integracao).toISOString().split('T')[0]
@@ -171,32 +172,43 @@ router.get('/:id', async (req, res) => {
     
     const order = rows[0];
     
-    // Fetch details from Bling if: no products yet OR rastreio not saved yet
+    // Fetch details from Bling if: no products yet OR rastreio not saved yet OR danfe_url not saved
     const parsedItens = typeof order.itens === 'string' ? (() => { try { return JSON.parse(order.itens); } catch { return []; } })() : (order.itens || []);
     const hasDetails = Array.isArray(parsedItens) && parsedItens.length > 0;
     const needsRastreio = !order.rastreio;
+    const needsDanfe = !order.danfe_url;
     
-    if (((!hasDetails) || needsRastreio) && order.bling_order_id) {
-      console.log(`[Orders] Fetching details for order ${order.bling_order_id} from Bling (hasDetails=${hasDetails}, needsRastreio=${needsRastreio})...`);
+    if (((!hasDetails) || needsRastreio || needsDanfe) && order.bling_order_id) {
+      console.log(`[Orders] Fetching details for order ${order.bling_order_id} from Bling (hasDetails=${hasDetails}, needsRastreio=${needsRastreio}, needsDanfe=${needsDanfe})...`);
       const details = await blingService.fetchOrderDetails(order.bling_order_id);
       
       if (details) {
         const rastreio = details.transporte?.volumes?.[0]?.codigoRastreamento || null;
-        // Update database with complete details + rastreio
+
+        // Try to fetch DANFE linkPDF if order has a notaFiscal and we don't have it yet
+        let danfeUrl = order.danfe_url || null;
+        const nfId = details.notaFiscal?.id;
+        if (nfId && needsDanfe) {
+          danfeUrl = await blingService.fetchDanfeUrl(nfId);
+        }
+
+        // Update database with complete details + rastreio + danfe_url
         await pool.query(
           `UPDATE orders SET
             itens = $1,
             billing_address = $2,
             shipping_address = $3,
             status = $4,
-            rastreio = $5
-          WHERE bling_order_id = $6`,
+            rastreio = $5,
+            danfe_url = $6
+          WHERE bling_order_id = $7`,
           [
             JSON.stringify(details.itens || []),
             JSON.stringify(details.contato?.endereco || null),
             JSON.stringify(details.contato?.endereco || null),
             details.situacao?.nome || details.situacao?.valor || String(details.situacao?.id) || order.status,
             rastreio,
+            danfeUrl,
             order.bling_order_id,
           ]
         );
