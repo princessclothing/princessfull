@@ -67,6 +67,21 @@ app.use('/pusher', pusherAuth);
 // start sync job (node-cron)
 require('./syncJob');
 
+// Bootstrap Bling tokens from DB on startup so cold-starts don't use stale env tokens
+(async () => {
+  try {
+    const blingService = require('./services/blingService');
+    const { loadTokens } = require('./utils/blingTokenStore');
+    const stored = await loadTokens();
+    if (stored && stored.accessToken) {
+      blingService.setTokenData(stored);
+      console.log('[startup] Bling tokens loaded from DB');
+    }
+  } catch (err) {
+    console.warn('[startup] Could not load Bling tokens from DB:', err.message);
+  }
+})();
+
 // ---- Health check (no sensitive data in response) -------------------------
 app.get('/', (req, res) => {
   res.json({ status: 'ok' });

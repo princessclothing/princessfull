@@ -16,19 +16,32 @@ const pool = new Pool({
 });
 
 // in-memory token cache (initialize from environment variables for serverless)
+// Read actual `exp` from JWT payload so we never use an already-expired env token
+function jwtExpiry(token) {
+  try {
+    const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
+    return payload.exp ? payload.exp * 1000 : 0;
+  } catch (_) {
+    return 0;
+  }
+}
+
 let tokenData = {
   accessToken: process.env.BLING_ACCESS_TOKEN || null,
   refreshToken: process.env.BLING_REFRESH_TOKEN || null,
-  // Set expiry to far future on serverless cold start (6 hours from now)
-  // This prevents immediate refresh attempts and uses the env token directly
-  expiresAt: process.env.BLING_ACCESS_TOKEN 
-    ? Date.now() + (6 * 60 * 60 * 1000) // 6 hours
+  // Use real JWT exp claim instead of an arbitrary 6-hour offset
+  expiresAt: process.env.BLING_ACCESS_TOKEN
+    ? jwtExpiry(process.env.BLING_ACCESS_TOKEN)
     : 0,
 };
 
 // Log token status on startup
 if (tokenData.accessToken) {
-  console.log(`[blingService] Initialized with JWT token (${tokenData.accessToken.length} chars, expires: ${new Date(tokenData.expiresAt).toISOString()})`);
+  const expired = Date.now() >= tokenData.expiresAt;
+  console.log(`[blingService] Initialized with JWT token (${tokenData.accessToken.length} chars, expires: ${new Date(tokenData.expiresAt).toISOString()}, expired: ${expired})`);
+  if (expired) {
+    console.warn('[blingService] Token already expired — will refresh on first request');
+  }
 } else {
   console.warn('[blingService] No BLING_ACCESS_TOKEN found in environment');
 }
@@ -98,7 +111,20 @@ function storeTokenResponse(data) {
 exports.setTokenData = (data) => {
   tokenData.accessToken  = data.accessToken  || data.access_token;
   tokenData.refreshToken = data.refreshToken || data.refresh_token;
-  tokenData.expiresAt    = data.expiresAt    || (Date.now() + (data.expires_in || 0) * 1000);
+  // Prefer real JWT exp claim over expires_in arithmetic to avoid clock drift
+  const at = tokenData.accessToken;
+  tokenData.expiresAt = data.expiresAt
+    || (at ? jwtExpiry(at) : 0)
+    || (Date.now() + (data.expires_in || 0) * 1000);
+  // Persist to DB so tokens survive cold starts (non-blocking)
+  if (tokenData.accessToken && tokenData.refreshToken && process.env.PII_ENCRYPTION_KEY) {
+    const expiresInSeconds = Math.max(0, Math.floor((tokenData.expiresAt - Date.now()) / 1000));
+    saveTokens({
+      access_token: tokenData.accessToken,
+      refresh_token: tokenData.refreshToken,
+      expires_in: expiresInSeconds,
+    }).catch(err => console.error('[blingService] setTokenData persist error:', err.message));
+  }
 };
 
 /**
