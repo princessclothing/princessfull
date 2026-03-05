@@ -169,12 +169,12 @@ export default function App() {
     }
   }, [orders])
 
-  // Print label — abre o PDF salvo ou abre o pedido no Bling em nova aba
+  // Print label — abre o PDF salvo ou abre o Bling em nova aba
   const handlePrintLabel = useCallback(() => {
     if (selectedOrder?.labelUrl) {
       window.open(selectedOrder.labelUrl, '_blank', 'noopener,noreferrer')
-    } else if (selectedOrder?.id) {
-      window.open(`https://www.bling.com.br/pedidos-venda.php#id=${selectedOrder.id}`, '_blank', 'noopener,noreferrer')
+    } else {
+      window.open('https://www.bling.com.br/', '_blank', 'noopener,noreferrer')
     }
   }, [selectedOrder])
 
