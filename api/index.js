@@ -14,12 +14,27 @@ if (process.env.NODE_ENV !== 'production') {
   } catch (_) {}
 }
 
-const app = require('../backend/src/index');
+let app;
+let loadError;
+try {
+  app = require('../backend/src/index');
+} catch (err) {
+  loadError = err;
+  console.error('[api/index] Failed to load backend app:', err.message);
+  console.error(err.stack);
+}
 
 // Vercel sends URLs like: /api/bling/sync
 // Express expects: /bling/sync
 // So we need to strip /api prefix before passing to Express
 module.exports = (req, res) => {
+  if (loadError) {
+    return res.status(500).json({
+      error: 'Backend failed to load',
+      message: loadError.message,
+      stack: loadError.stack,
+    });
+  }
   // Strip /api prefix
   req.url = req.url.replace(/^\/api/, '') || '/';
   app(req, res);
