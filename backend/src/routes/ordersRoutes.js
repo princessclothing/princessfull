@@ -1,6 +1,7 @@
 const express = require('express');
 const router  = express.Router();
 const { Pool } = require('pg');
+const { del } = require('@vercel/blob');
 const blingService = require('../services/blingService');
 // Note: requireAuth removed for demo - in production, validate user authentication
 
@@ -297,6 +298,47 @@ router.patch('/:id', async (req, res) => {
   } catch (err) {
     console.error('PATCH /orders/:id error', err);
     res.status(500).json({ message: 'Erro ao atualizar ordem', error: err.message });
+  }
+});
+
+// POST /orders/:id/complete — conclui a ordem: remove blob, marca como Atendido no Bling e deleta do banco
+router.post('/:id/complete', async (req, res) => {
+  if (!pool) return res.status(501).json({ message: 'Database not configured' });
+
+  try {
+    const orderId = req.params.id;
+    const idAsInt = parseInt(orderId, 10);
+    const isDbId  = !isNaN(idAsInt) && idAsInt < 1_000_000;
+
+    const { rows } = await pool.query(
+      isDbId
+        ? 'SELECT * FROM orders WHERE id = $1 LIMIT 1'
+        : 'SELECT * FROM orders WHERE bling_order_id = $1 LIMIT 1',
+      [isDbId ? idAsInt : orderId]
+    );
+    if (!rows.length) return res.status(404).json({ message: 'Ordem não encontrada' });
+
+    const order = rows[0];
+
+    // 1. Remover PDF do Vercel Blob (best effort)
+    if (order.label_url) {
+      try { await del(order.label_url); } catch (e) { console.warn('[Complete] Blob delete failed:', e.message); }
+    }
+
+    // 2. Marcar como Atendido (9) no Bling (best effort)
+    if (order.bling_order_id) {
+      try { await blingService.updateOrderSituacao(order.bling_order_id, 9); }
+      catch (e) { console.warn('[Complete] Bling status update failed:', e.message); }
+    }
+
+    // 3. Deletar do banco
+    await pool.query('DELETE FROM orders WHERE id = $1', [order.id]);
+
+    console.log(`[Complete] Order ${order.bling_order_id} concluded and removed`);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('POST /orders/:id/complete error', err);
+    res.status(500).json({ message: 'Erro ao concluir ordem', error: err.message });
   }
 });
 

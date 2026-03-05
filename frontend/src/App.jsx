@@ -222,6 +222,17 @@ export default function App() {
     }
   }, [])
 
+  // Concluir ordem — marca como Atendido no Bling, remove blob e deleta do banco
+  const handleComplete = useCallback(async (id) => {
+    try {
+      await apiFetch(`/orders/${id}/complete`, { method: 'POST' })
+      setOrders(prev => prev.filter(o => o.id !== id))
+      setSelectedOrder(null)
+    } catch (err) {
+      alert(`Erro ao concluir ordem: ${err.message}`)
+    }
+  }, [])
+
   const handleNavigate = useCallback((key) => {
     setSelectedOrder(null)
     setCurrentPage(key)
@@ -283,6 +294,11 @@ export default function App() {
               if (window.confirm(`Cancelar ordem ${selectedOrder.id}?`)) {
                 handleCancel(selectedOrder.id)
                 setSelectedOrder(null)
+              }
+            }}
+            onComplete={() => {
+              if (window.confirm(`Concluir ordem ${selectedOrder.id}?\n\nEsta ação irá:\n• Marcar como Atendido no Bling\n• Remover da fila de expedição\n• Apagar o PDF da etiqueta\n\nNão é possível desfazer.`)) {
+                handleComplete(selectedOrder.id)
               }
             }}
           />

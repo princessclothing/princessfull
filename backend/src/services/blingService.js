@@ -156,8 +156,9 @@ exports.forceTokenRefresh = async () => {
 };
 
 // Bling V3 numeric status codes allowed for sync:
-// 6 = Em aberto, 9 = Atendido
-const ALLOWED_STATUS_CODES = [6, 9];
+// 6 = Em aberto (pedidos pendentes de processamento)
+// 9 = Atendido → excluído do sync: ordens concluídas no painel não re-sincronizam
+const ALLOWED_STATUS_CODES = [6];
 
 /**
  * Fetch all orders for a single shopId with pagination.
@@ -294,6 +295,20 @@ async function upsertOrder(order) {
  * OAuth2 token without duplicating the auth logic.
  */
 exports.authenticate = authenticate;
+
+/**
+ * Update situacao (status) of an order in Bling.
+ * @param {string} orderId  — bling_order_id
+ * @param {number} situacaoId — e.g. 9 = Atendido
+ */
+exports.updateOrderSituacao = async (orderId, situacaoId) => {
+  const token = await authenticate();
+  await axios.patch(
+    `${process.env.BLING_API_URL}/pedidos/vendas/${orderId}/situacoes`,
+    { situacao: { id: situacaoId } },
+    { headers: { Authorization: `Bearer ${token}`, 'enable-jwt': '1', 'Content-Type': 'application/json' } }
+  );
+};
 
 /**
  * Fetch linkPDF (DANFE) from a NF-e ID.

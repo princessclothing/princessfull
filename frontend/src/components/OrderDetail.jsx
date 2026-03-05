@@ -43,7 +43,7 @@ const Card = ({ title, children, className = '' }) => (
   </div>
 )
 
-const OrderDetail = ({ order, onPrintLabel, onCancel, onUpdate, onLabelUpload }) => {
+const OrderDetail = ({ order, onPrintLabel, onCancel, onComplete, onUpdate, onLabelUpload }) => {
   const [selectedCarrier, setSelectedCarrier] = useState('')
   const [files, setFiles] = useState({ danfe: null, others: [] })
   const [labelUploading, setLabelUploading] = useState(false)
@@ -164,6 +164,14 @@ const OrderDetail = ({ order, onPrintLabel, onCancel, onUpdate, onLabelUpload })
             >
               🏷️ Etiqueta
             </button>
+            {onComplete && (
+              <button
+                onClick={onComplete}
+                className="px-4 py-2 rounded-lg border border-emerald-200 text-sm font-medium text-emerald-700 hover:bg-emerald-50 transition-colors"
+              >
+                ✅ Concluir Ordem
+              </button>
+            )}
             <button
               onClick={onCancel}
               className="px-4 py-2 rounded-lg border border-red-200 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors"
