@@ -97,8 +97,22 @@ const OrderDetail = ({ order, onPrintLabel, onCancel, onUpdate }) => {
           {/* Left: IDs + steps */}
           <div className="space-y-3">
             <div>
-              <h1 className="text-lg font-bold text-slate-800 leading-tight">Ordem {order.id}</h1>
-              <p className="text-xs text-gray-500 mt-0.5">Ref. Pedido Cliente <span className="font-medium text-slate-700">#{order.refCliente}</span></p>
+              <h1 className="text-lg font-bold text-slate-800 leading-tight">Ordem #{order.numeroBling || order.id}</h1>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1">
+                {order.numeroBling && (
+                  <p className="text-xs text-gray-500">
+                    Nº Bling: <span className="font-semibold text-purple-700">{order.numeroBling}</span>
+                  </p>
+                )}
+                {order.numeroLoja && (
+                  <p className="text-xs text-gray-500">
+                    Nº Marketplace: <span className="font-semibold text-slate-700 font-mono">{order.numeroLoja}</span>
+                  </p>
+                )}
+                {order.marketplace && (
+                  <p className="text-xs text-gray-400">Loja: {order.marketplace}</p>
+                )}
+              </div>
             </div>
 
             {/* 5-step fulfillment progress */}
@@ -142,6 +156,40 @@ const OrderDetail = ({ order, onPrintLabel, onCancel, onUpdate }) => {
 
       {/* ── 2-col grid: timeline + addresses ─────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+        {/* Rastreio — aparece quando disponível */}
+        {order.rastreio && (
+          <Card title="📦 Rastreamento" className="lg:col-span-2">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+              <div className="flex-1">
+                <p className="text-xs text-gray-500 mb-1">Código de rastreio</p>
+                <p className="font-mono text-base font-semibold text-slate-800 tracking-wider">{order.rastreio}</p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => navigator.clipboard.writeText(order.rastreio)}
+                  className="px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-medium text-slate-600 hover:bg-gray-50 transition-colors"
+                >
+                  📋 Copiar
+                </button>
+                <a
+                  href={`https://rastreamento.correios.com.br/app/index.php?s=${order.rastreio}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-3 py-1.5 rounded-lg border border-purple-200 text-xs font-medium text-purple-700 hover:bg-purple-50 transition-colors"
+                >
+                  🔍 Rastrear
+                </a>
+              </div>
+            </div>
+          </Card>
+        )}
+
+        {!order.rastreio && (
+          <Card title="📦 Rastreamento" className="lg:col-span-2">
+            <p className="text-xs text-gray-400 italic">Código de rastreio não disponível para este pedido.</p>
+          </Card>
+        )}
 
         {/* Timeline */}
         <Card title="Timeline de Fulfillment">

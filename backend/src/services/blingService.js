@@ -240,6 +240,8 @@ async function upsertOrder(order) {
       INSERT INTO orders(
         bling_order_id,
         shop_id,
+        numero_bling,
+        numero_loja,
         cliente_nome,
         cliente_email,
         status,
@@ -248,9 +250,11 @@ async function upsertOrder(order) {
         itens,
         billing_address,
         shipping_address
-      ) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+      ) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
       ON CONFLICT (bling_order_id) DO UPDATE SET
         shop_id = EXCLUDED.shop_id,
+        numero_bling = EXCLUDED.numero_bling,
+        numero_loja = EXCLUDED.numero_loja,
         cliente_nome = EXCLUDED.cliente_nome,
         cliente_email = EXCLUDED.cliente_email,
         status = EXCLUDED.status,
@@ -262,20 +266,21 @@ async function upsertOrder(order) {
     `;
 
     // Log order data for debugging
-    console.log(`[Bling] Upserting order ${order.id}: items=${order.itens?.length || 0}, status=${order.situacao?.nome || order.situacao?.id}`);
+    console.log(`[Bling] Upserting order ${order.id} (nº ${order.numero}, loja: ${order.numeroLoja}): items=${order.itens?.length || 0}, status=${order.situacao?.nome || order.situacao?.id}`);
 
     const values = [
-      // Bling V3 uses `id` as the order identifier (numeric), not `numero_pedido_bling`
       String(order.id),
       order.loja?.id ? String(order.loja.id) : null,
+      order.numero != null ? String(order.numero) : null,
+      order.numeroLoja || null,
       order.contato?.nome || null,
       order.contato?.email || null,
-      order.situacao?.nome || order.situacao?.valor || String(order.situacao?.id) || null, // Try nome, then valor, then ID as string
+      order.situacao?.nome || order.situacao?.valor || String(order.situacao?.id) || null,
       order.data ? new Date(order.data) : null,
       new Date(),
       JSON.stringify(order.itens || []),
       JSON.stringify(order.contato?.endereco || null),
-      JSON.stringify(order.contato?.endereco || null), // Use same for both in Bling
+      JSON.stringify(order.contato?.endereco || null),
     ];
 
     await client.query(query, values);

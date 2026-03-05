@@ -82,6 +82,9 @@ function rowToOrder(row) {
   return {
     id:             String(row.bling_order_id || row.id),
     dbId:           row.id,
+    numeroBling:    row.numero_bling || null,
+    numeroLoja:     row.numero_loja  || null,
+    rastreio:       row.rastreio     || null,
     refCliente:     row.shop_id || '—',
     dataIntegracao: row.data_integracao
       ? new Date(row.data_integracao).toISOString().split('T')[0]
@@ -167,27 +170,32 @@ router.get('/:id', async (req, res) => {
     
     const order = rows[0];
     
-    // If order has no products/addresses, fetch details from Bling and update DB
-    const hasDetails = order.itens && (typeof order.itens === 'string' ? JSON.parse(order.itens).length > 0 : order.itens.length > 0);
+    // Fetch details from Bling if: no products yet OR rastreio not saved yet
+    const parsedItens = typeof order.itens === 'string' ? (() => { try { return JSON.parse(order.itens); } catch { return []; } })() : (order.itens || []);
+    const hasDetails = Array.isArray(parsedItens) && parsedItens.length > 0;
+    const needsRastreio = !order.rastreio;
     
-    if (!hasDetails && order.bling_order_id) {
-      console.log(`[Orders] Fetching details for order ${order.bling_order_id} from Bling...`);
+    if (((!hasDetails) || needsRastreio) && order.bling_order_id) {
+      console.log(`[Orders] Fetching details for order ${order.bling_order_id} from Bling (hasDetails=${hasDetails}, needsRastreio=${needsRastreio})...`);
       const details = await blingService.fetchOrderDetails(order.bling_order_id);
       
       if (details) {
-        // Update database with complete details
+        const rastreio = details.transporte?.volumes?.[0]?.codigoRastreamento || null;
+        // Update database with complete details + rastreio
         await pool.query(
-          `UPDATE orders SET 
+          `UPDATE orders SET
             itens = $1,
             billing_address = $2,
             shipping_address = $3,
-            status = $4
-          WHERE bling_order_id = $5`,
+            status = $4,
+            rastreio = $5
+          WHERE bling_order_id = $6`,
           [
             JSON.stringify(details.itens || []),
             JSON.stringify(details.contato?.endereco || null),
             JSON.stringify(details.contato?.endereco || null),
             details.situacao?.nome || details.situacao?.valor || String(details.situacao?.id) || order.status,
+            rastreio,
             order.bling_order_id,
           ]
         );

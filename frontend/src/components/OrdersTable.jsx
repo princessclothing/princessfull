@@ -46,8 +46,14 @@ const OrderRow = memo(({ order, onView, onCancel, rowIndex }) => {
       onKeyDown={handleKeyDown}
       aria-label={`Ordem ${order.id}, ref ${order.refCliente}`}
     >
-      <td className="px-4 py-3 font-mono text-sm font-semibold text-purple-700">{order.id}</td>
-      <td className="px-4 py-3 text-sm text-slate-700">{order.refCliente}</td>
+      <td className="px-4 py-3">
+        <p className="font-semibold text-sm text-purple-700">{order.numeroBling || '—'}</p>
+        <p className="text-[11px] text-gray-400 mt-0.5">Bling</p>
+      </td>
+      <td className="px-4 py-3">
+        <p className="font-mono text-xs text-slate-700 break-all">{order.numeroLoja || '—'}</p>
+        <p className="text-[11px] text-gray-400 mt-0.5">{order.marketplace || 'Marketplace'}</p>
+      </td>
       <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">{order.dataIntegracao}</td>
       <td className="px-4 py-3"><FulfillmentIcons status={order.status} /></td>
       <td className="px-4 py-3"><OrderStatusBadge status={order.status} /></td>
@@ -78,12 +84,12 @@ const VISIBLE_ROWS      = 15
 const ROW_HEIGHT_PX     = 52
 
 const COLUMNS = [
-  { field: 'id',              label: 'Ordem de Expedi\u00e7\u00e3o' },
-  { field: 'refCliente',      label: 'Ref. Pedido'           },
-  { field: 'dataIntegracao',  label: 'Data Integra\u00e7\u00e3o'    },
-  { field: null,              label: 'Fulfillment'            },
-  { field: null,              label: 'Status'                 },
-  { field: null,              label: 'A\u00e7\u00f5es'                },
+  { field: 'numeroBling',    label: 'Nº Bling'         },
+  { field: 'numeroLoja',     label: 'Nº Marketplace'   },
+  { field: 'dataIntegracao', label: 'Data Integração'  },
+  { field: null,             label: 'Fulfillment'      },
+  { field: null,             label: 'Status'           },
+  { field: null,             label: 'Ações'            },
 ]
 
 // ── Main export ───────────────────────────────────────────────────────────────
