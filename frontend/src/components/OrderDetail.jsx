@@ -43,15 +43,35 @@ const Card = ({ title, children, className = '' }) => (
   </div>
 )
 
-const OrderDetail = ({ order, onPrintLabel, onCancel, onUpdate }) => {
+const OrderDetail = ({ order, onPrintLabel, onCancel, onUpdate, onLabelUpload }) => {
   const [selectedCarrier, setSelectedCarrier] = useState('')
-  const [files, setFiles] = useState({ danfe: null, label: null, others: [] })
+  const [files, setFiles] = useState({ danfe: null, others: [] })
+  const [labelUploading, setLabelUploading] = useState(false)
+  const [labelUploadError, setLabelUploadError] = useState(null)
   const [chatInput, setChatInput] = useState('')
   const [saving, setSaving] = useState(false)
 
   const handleFileChange = (field, evt) => {
     const file = evt.target.files[0]
     setFiles(prev => ({ ...prev, [field]: file }))
+  }
+
+  // Upload da etiqueta imediatamente ao selecionar o arquivo
+  const handleLabelFileChange = async (evt) => {
+    const file = evt.target.files[0]
+    if (!file) return
+    setLabelUploading(true)
+    setLabelUploadError(null)
+    try {
+      if (!onLabelUpload) throw new Error('Upload não configurado')
+      const url = await onLabelUpload(order.id, file)
+      console.log('[Label] Uploaded:', url)
+    } catch (err) {
+      setLabelUploadError(err.message)
+    } finally {
+      setLabelUploading(false)
+      evt.target.value = '' // reset input
+    }
   }
 
   const handleSaveShipment = async () => {
@@ -287,27 +307,89 @@ const OrderDetail = ({ order, onPrintLabel, onCancel, onUpdate }) => {
         {/* Uploads */}
         <Card title="Documentos e Anexos">
           <div className="space-y-3">
-            {[
-              { field: 'danfe',  label: 'DANFE (NF-e)',       accept: '.pdf,image/*' },
-              { field: 'label',  label: 'Etiqueta de envio',  accept: '.pdf,image/*' },
-              { field: 'others', label: 'Outros anexos',      accept: '*',            multiple: true },
-            ].map(({ field, label, accept, multiple }) => (
-              <div key={field} className="flex items-center justify-between gap-3">
-                <label className="text-xs text-gray-600 font-medium w-36 shrink-0">{label}</label>
-                <div className="flex-1">
-                  <label className="flex items-center gap-2 cursor-pointer border border-dashed border-gray-200 rounded-lg px-3 py-1.5 hover:border-purple-400 hover:bg-purple-50/30 transition-colors">
-                    <span className="text-gray-400 text-xs">{files[field] ? (multiple ? `${files[field].length ?? 1} arquivo(s)` : files[field].name) : 'Escolher arquivo'}</span>
-                    <input
-                      type="file"
-                      accept={accept}
-                      multiple={multiple}
-                      className="hidden"
-                      onChange={e => handleFileChange(field, e)}
-                    />
+
+            {/* Etiqueta de envio — upload com feedback e botão abrir */}
+            <div className="space-y-1.5">
+              <p className="text-xs text-gray-600 font-medium">Etiqueta de envio</p>
+              {order.labelUrl ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-emerald-600 font-medium">✅ Etiqueta carregada</span>
+                  <button
+                    onClick={() => window.open(order.labelUrl, '_blank', 'noopener,noreferrer')}
+                    className="px-3 py-1 rounded-md text-xs font-medium bg-purple-50 text-purple-700 hover:bg-purple-100 transition-colors"
+                  >
+                    📄 Abrir PDF
+                  </button>
+                  <label className="px-3 py-1 rounded-md text-xs font-medium border border-gray-200 text-slate-500 hover:bg-gray-50 cursor-pointer transition-colors">
+                    Substituir
+                    <input type="file" accept=".pdf,image/*" className="hidden" onChange={handleLabelFileChange} />
                   </label>
                 </div>
+              ) : (
+                <label className={`flex items-center gap-2 cursor-pointer border-2 border-dashed rounded-lg px-3 py-2 transition-colors ${
+                  labelUploading ? 'border-purple-300 bg-purple-50/50' : 'border-gray-200 hover:border-purple-400 hover:bg-purple-50/30'
+                }`}>
+                  {labelUploading ? (
+                    <>
+                      <svg className="animate-spin h-4 w-4 text-purple-500 shrink-0" viewBox="0 0 24 24" fill="none">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+                      </svg>
+                      <span className="text-xs text-purple-600">Enviando...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-lg">📄</span>
+                      <span className="text-xs text-gray-400">Escolher PDF da etiqueta</span>
+                    </>
+                  )}
+                  <input
+                    type="file"
+                    accept=".pdf,image/*"
+                    className="hidden"
+                    disabled={labelUploading}
+                    onChange={handleLabelFileChange}
+                  />
+                </label>
+              )}
+              {labelUploadError && (
+                <p className="text-xs text-red-500">⚠️ {labelUploadError}</p>
+              )}
+            </div>
+
+            {/* DANFE */}
+            <div className="flex items-center justify-between gap-3">
+              <label className="text-xs text-gray-600 font-medium w-36 shrink-0">DANFE (NF-e)</label>
+              <div className="flex-1">
+                <label className="flex items-center gap-2 cursor-pointer border border-dashed border-gray-200 rounded-lg px-3 py-1.5 hover:border-purple-400 hover:bg-purple-50/30 transition-colors">
+                  <span className="text-gray-400 text-xs">{files.danfe ? files.danfe.name : 'Escolher arquivo'}</span>
+                  <input
+                    type="file"
+                    accept=".pdf,image/*"
+                    className="hidden"
+                    onChange={e => handleFileChange('danfe', e)}
+                  />
+                </label>
               </div>
-            ))}
+            </div>
+
+            {/* Outros */}
+            <div className="flex items-center justify-between gap-3">
+              <label className="text-xs text-gray-600 font-medium w-36 shrink-0">Outros anexos</label>
+              <div className="flex-1">
+                <label className="flex items-center gap-2 cursor-pointer border border-dashed border-gray-200 rounded-lg px-3 py-1.5 hover:border-purple-400 hover:bg-purple-50/30 transition-colors">
+                  <span className="text-gray-400 text-xs">{files.others?.name ? files.others.name : '0 arquivo(s)'}</span>
+                  <input
+                    type="file"
+                    accept="*"
+                    multiple
+                    className="hidden"
+                    onChange={e => handleFileChange('others', e)}
+                  />
+                </label>
+              </div>
+            </div>
+
           </div>
         </Card>
       </div>

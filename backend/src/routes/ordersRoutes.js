@@ -85,6 +85,7 @@ function rowToOrder(row) {
     numeroBling:    row.numero_bling || null,
     numeroLoja:     row.numero_loja  || null,
     rastreio:       row.rastreio     || null,
+    labelUrl:       row.label_url    || null,
     refCliente:     row.shop_id || '—',
     dataIntegracao: row.data_integracao
       ? new Date(row.data_integracao).toISOString().split('T')[0]

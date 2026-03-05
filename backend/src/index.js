@@ -74,6 +74,10 @@ app.use('/lgpd', lgpdRoutes);
 const ordersRoutes = require('./routes/ordersRoutes');
 app.use('/orders', ordersRoutes);
 
+// Label upload/download (Vercel Blob)
+const labelRoutes = require('./routes/labelRoutes');
+app.use('/orders/:id/label', labelRoutes);
+
 // Webhook endpoints (Bling and future integrations)
 const webhookRoutes = require('./routes/webhookRoutes');
 app.use('/webhooks', webhookRoutes);

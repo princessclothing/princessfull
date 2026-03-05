@@ -169,6 +169,37 @@ export default function App() {
     }
   }, [orders])
 
+  // Print label — abre o PDF salvo em nova aba
+  const handlePrintLabel = useCallback(() => {
+    if (selectedOrder?.labelUrl) {
+      window.open(selectedOrder.labelUrl, '_blank', 'noopener,noreferrer')
+    } else {
+      alert('Nenhuma etiqueta enviada para esta ordem.\n\nFaça o upload do PDF na seção "Documentos e Anexos".')
+    }
+  }, [selectedOrder])
+
+  // Upload da etiqueta para Vercel Blob via backend
+  const handleLabelUpload = useCallback(async (orderId, file) => {
+    const formData = new FormData()
+    formData.append('label', file)
+    const token = localStorage.getItem('accessToken')
+    const res = await fetch(`${API_BASE}/orders/${orderId}/label`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: formData,
+    })
+    const text = await res.text()
+    if (!res.ok) {
+      let msg = 'Erro ao enviar etiqueta'
+      try { msg = JSON.parse(text).message } catch {}
+      throw new Error(msg)
+    }
+    const data = JSON.parse(text)
+    // Atualizar o pedido selecionado com a nova URL
+    setSelectedOrder(prev => ({ ...prev, labelUrl: data.labelUrl }))
+    return data.labelUrl
+  }, [])
+
   // Cancel order
   const handleCancel = useCallback(async (id) => {
     try {
@@ -233,9 +264,10 @@ export default function App() {
         ) : (
           <OrderDetail
             order={selectedOrder}
-            onPrintLabel={()  => alert('Imprimir etiqueta: integração pendente')}
+            onPrintLabel={handlePrintLabel}
+            onLabelUpload={handleLabelUpload}
             onUpdate={handleUpdateOrder}
-            onCancel={()      => {
+            onCancel={() => {
               if (window.confirm(`Cancelar ordem ${selectedOrder.id}?`)) {
                 handleCancel(selectedOrder.id)
                 setSelectedOrder(null)
