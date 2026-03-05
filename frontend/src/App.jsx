@@ -169,12 +169,24 @@ export default function App() {
     }
   }, [orders])
 
-  // Print label — abre o PDF salvo ou abre o Bling em nova aba
+  // Mapeia o serviço do volume (Bling) para o parâmetro tipoIntegracao da URL de etiquetas
+  const buildBlingLabelUrl = (servico) => {
+    if (!servico) return 'https://www.bling.com.br/inicio'
+    const s = servico.toLowerCase()
+    if (s.includes('mercado')) return `https://www.bling.com.br/impressao/etiquetasEnvio.php?tipoIntegracao=MercadoEnvios&descricao=${encodeURIComponent(servico)}`
+    if (s.includes('shopee'))  return `https://www.bling.com.br/impressao/etiquetasEnvio.php?tipoIntegracao=ShopeeExpress&descricao=${encodeURIComponent(servico)}`
+    if (s.includes('amazon'))  return `https://www.bling.com.br/impressao/etiquetasEnvio.php?tipoIntegracao=AmazonEnvios&descricao=${encodeURIComponent(servico)}`
+    if (s.includes('correio')) return `https://www.bling.com.br/impressao/etiquetasEnvio.php?tipoIntegracao=Correios&descricao=${encodeURIComponent(servico)}`
+    // fallback genérico com o nome do serviço
+    return `https://www.bling.com.br/impressao/etiquetasEnvio.php?descricao=${encodeURIComponent(servico)}`
+  }
+
+  // Print label — abre o PDF salvo ou página de etiquetas no Bling
   const handlePrintLabel = useCallback(() => {
     if (selectedOrder?.labelUrl) {
       window.open(selectedOrder.labelUrl, '_blank', 'noopener,noreferrer')
     } else {
-      window.open('https://www.bling.com.br/', '_blank', 'noopener,noreferrer')
+      window.open(buildBlingLabelUrl(selectedOrder?.volumeServico), '_blank', 'noopener,noreferrer')
     }
   }, [selectedOrder])
 

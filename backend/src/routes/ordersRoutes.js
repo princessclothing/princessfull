@@ -82,11 +82,12 @@ function rowToOrder(row) {
   return {
     id:             String(row.bling_order_id || row.id),
     dbId:           row.id,
-    numeroBling:    row.numero_bling || null,
-    numeroLoja:     row.numero_loja  || null,
-    rastreio:       row.rastreio     || null,
-    labelUrl:       row.label_url    || null,
-    danfeUrl:       row.danfe_url    || null,
+    numeroBling:    row.numero_bling   || null,
+    numeroLoja:     row.numero_loja    || null,
+    rastreio:       row.rastreio       || null,
+    volumeServico:  row.volume_servico || null,
+    labelUrl:       row.label_url      || null,
+    danfeUrl:       row.danfe_url      || null,
     refCliente:     row.shop_id || '—',
     dataIntegracao: row.data_integracao
       ? new Date(row.data_integracao).toISOString().split('T')[0]
@@ -184,6 +185,7 @@ router.get('/:id', async (req, res) => {
       
       if (details) {
         const rastreio = details.transporte?.volumes?.[0]?.codigoRastreamento || null;
+        const volumeServico = details.transporte?.volumes?.[0]?.servico || null;
 
         // Try to fetch DANFE linkPDF if order has a notaFiscal and we don't have it yet
         let danfeUrl = order.danfe_url || null;
@@ -192,7 +194,7 @@ router.get('/:id', async (req, res) => {
           danfeUrl = await blingService.fetchDanfeUrl(nfId);
         }
 
-        // Update database with complete details + rastreio + danfe_url
+        // Update database with complete details + rastreio + danfe_url + volume_servico
         await pool.query(
           `UPDATE orders SET
             itens = $1,
@@ -200,8 +202,9 @@ router.get('/:id', async (req, res) => {
             shipping_address = $3,
             status = $4,
             rastreio = $5,
-            danfe_url = $6
-          WHERE bling_order_id = $7`,
+            danfe_url = $6,
+            volume_servico = $7
+          WHERE bling_order_id = $8`,
           [
             JSON.stringify(details.itens || []),
             JSON.stringify(details.contato?.endereco || null),
@@ -209,6 +212,7 @@ router.get('/:id', async (req, res) => {
             details.situacao?.nome || details.situacao?.valor || String(details.situacao?.id) || order.status,
             rastreio,
             danfeUrl,
+            volumeServico,
             order.bling_order_id,
           ]
         );
