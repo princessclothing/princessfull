@@ -99,8 +99,8 @@ export default function App() {
 
   const shopId = '204794092'
   const user   = authUser
-    ? { name: authUser.name || authUser.email, company: 'FulfillPanel', role: authUser.role }
-    : { name: '', company: 'FulfillPanel', role: null }
+    ? { name: authUser.name || authUser.email, company: 'Princess Full', role: authUser.role }
+    : { name: '', company: 'Princess Full', role: null }
 
   // Fetch order list — declared BEFORE useRealtimeOrders so onResync is ready
   const loadOrders = useCallback(async () => {

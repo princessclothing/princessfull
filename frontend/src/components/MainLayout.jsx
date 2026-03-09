@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import ManualOrderModal from './ManualOrderModal'
+import { useAuth } from '../context/AuthContext'
 
 const NAV_ITEMS = [
   { key: 'orders',        emoji: '📦', label: 'Ordens de Expedição'   },
@@ -17,6 +18,7 @@ const NAV_ITEMS = [
 export default function MainLayout({ children, title, breadcrumb, activeKey, onNavigate = () => {}, user = {} }) {
   const [collapsed, setCollapsed] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
+  const { logout } = useAuth()
 
   const initials = user.name
     ? user.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
@@ -30,10 +32,10 @@ export default function MainLayout({ children, title, breadcrumb, activeKey, onN
 
         {/* Logo */}
         <div className="flex items-center gap-2.5 px-3 h-14 border-b border-gray-100">
-          <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-purple-700 text-white text-xs font-bold shrink-0">FP</div>
+          <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-purple-700 text-white text-xs font-bold shrink-0">PF</div>
           {!collapsed && (
             <div className="overflow-hidden">
-              <p className="text-sm font-semibold text-slate-800 truncate leading-tight">FulfillPanel</p>
+              <p className="text-sm font-semibold text-slate-800 truncate leading-tight">Princess Full</p>
               <p className="text-[10px] text-gray-400 leading-tight">Painel de Expedição</p>
             </div>
           )}
@@ -65,10 +67,22 @@ export default function MainLayout({ children, title, breadcrumb, activeKey, onN
           <div className={`flex items-center gap-2.5 ${collapsed ? 'justify-center' : ''}`}>
             <div className="w-7 h-7 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center text-[11px] font-bold shrink-0">{initials}</div>
             {!collapsed && (
-              <div className="overflow-hidden leading-tight">
+              <div className="flex-1 overflow-hidden leading-tight min-w-0">
                 <p className="text-xs font-medium text-slate-800 truncate">{user.name || 'Usuário'}</p>
-                <p className="text-[10px] text-gray-400 truncate">{user.company || 'Empresa'}</p>
+                <p className="text-[10px] text-gray-400 truncate capitalize">{user.role || user.company || 'Empresa'}</p>
               </div>
+            )}
+            {!collapsed && (
+              <button
+                onClick={logout}
+                title="Sair"
+                className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors shrink-0"
+                aria-label="Sair"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h6a2 2 0 012 2v1" />
+                </svg>
+              </button>
             )}
           </div>
         </div>
@@ -126,7 +140,7 @@ export default function MainLayout({ children, title, breadcrumb, activeKey, onN
             <div className="flex items-center gap-2 pl-1">
               <div className="text-right hidden sm:block">
                 <p className="text-xs font-medium text-slate-800 leading-tight">{user.name || 'Usuário'}</p>
-                <p className="text-[10px] text-gray-400 leading-tight">{user.company || 'Empresa'}</p>
+                <p className="text-[10px] text-gray-400 leading-tight">Princess Full</p>
               </div>
               <div className="w-8 h-8 rounded-full bg-purple-700 text-white flex items-center justify-center text-xs font-bold">{initials}</div>
             </div>
