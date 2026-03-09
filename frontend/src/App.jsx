@@ -8,6 +8,9 @@ import OrdersTable         from './components/OrdersTable'
 import OrderDetail         from './components/OrderDetail'
 import NewOrderToast       from './components/NewOrderToast'
 import useRealtimeOrders   from './hooks/useRealtimeOrders'
+import { useAuth }         from './context/AuthContext'
+import LoginPage           from './pages/LoginPage'
+import ChangePasswordPage  from './pages/ChangePasswordPage'
 
 // API_BASE determines where frontend should send HTTP requests
 // - by default we use the relative `/api` path which Vercel rewrites
@@ -91,11 +94,13 @@ export default function App() {
   const [selectedOrder, setSelectedOrder] = useState(null)   // full order object
   const [detailLoading, setDetailLoading] = useState(false)
 
-  // ── user stub (replace with real auth context when ready) ──
-  // shopId comes from the JWT payload in a real implementation;
-  // For now, hardcode to match the main shop ID
+  // ── autenticação — todos os hooks ANTES de qualquer return condicional ──
+  const { user: authUser, loading: authLoading } = useAuth()
+
   const shopId = '204794092'
-  const user   = { name: 'Operador', company: 'FulfillPanel' }
+  const user   = authUser
+    ? { name: authUser.name || authUser.email, company: 'FulfillPanel', role: authUser.role }
+    : { name: '', company: 'FulfillPanel', role: null }
 
   // Fetch order list — declared BEFORE useRealtimeOrders so onResync is ready
   const loadOrders = useCallback(async () => {
@@ -118,7 +123,25 @@ export default function App() {
     { shopId, onResync: loadOrders }
   )
 
-  useEffect(() => { loadOrders() }, [loadOrders])
+  useEffect(() => {
+    if (authUser) loadOrders()
+  }, [loadOrders, authUser])
+
+  // ── guard: aguarda verificação de sessão e exibe login se não autenticado ──
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <svg className="animate-spin h-8 w-8 text-purple-600" viewBox="0 0 24 24" fill="none">
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+        </svg>
+      </div>
+    )
+  }
+
+  if (!authUser) return <LoginPage />
+
+  if (authUser.mustChangePassword) return <ChangePasswordPage />
 
   // Sync Bling
   const handleSyncBling = useCallback(async () => {
@@ -169,24 +192,16 @@ export default function App() {
     }
   }, [orders])
 
-  // Mapeia o serviço do volume (Bling) para o parâmetro tipoIntegracao da URL de etiquetas
-  const buildBlingLabelUrl = (servico) => {
-    if (!servico) return 'https://www.bling.com.br/inicio'
-    const s = servico.toLowerCase()
-    if (s.includes('mercado')) return `https://www.bling.com.br/impressao/etiquetasEnvio.php?tipoIntegracao=MercadoEnvios&descricao=${encodeURIComponent(servico)}`
-    if (s.includes('shopee'))  return `https://www.bling.com.br/impressao/etiquetasEnvio.php?tipoIntegracao=ShopeeExpress&descricao=${encodeURIComponent(servico)}`
-    if (s.includes('amazon'))  return `https://www.bling.com.br/impressao/etiquetasEnvio.php?tipoIntegracao=AmazonEnvios&descricao=${encodeURIComponent(servico)}`
-    if (s.includes('correio')) return `https://www.bling.com.br/impressao/etiquetasEnvio.php?tipoIntegracao=Correios&descricao=${encodeURIComponent(servico)}`
-    // fallback genérico com o nome do serviço
-    return `https://www.bling.com.br/impressao/etiquetasEnvio.php?descricao=${encodeURIComponent(servico)}`
-  }
-
-  // Print label — abre o PDF salvo ou página de etiquetas no Bling
+  // Print label — abre o PDF salvo ou a página do pedido no Bling (filtrado pelo ID)
   const handlePrintLabel = useCallback(() => {
     if (selectedOrder?.labelUrl) {
       window.open(selectedOrder.labelUrl, '_blank', 'noopener,noreferrer')
     } else {
-      window.open(buildBlingLabelUrl(selectedOrder?.volumeServico), '_blank', 'noopener,noreferrer')
+      const blingId = selectedOrder?.id   // id já é o bling_order_id
+      const url = blingId
+        ? `https://www.bling.com.br/notas.fiscais.php#edit/${blingId}`
+        : 'https://www.bling.com.br/notas.fiscais.php'
+      window.open(url, '_blank', 'noopener,noreferrer')
     }
   }, [selectedOrder])
 
