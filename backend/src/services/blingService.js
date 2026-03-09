@@ -93,11 +93,16 @@ const { saveTokens, loadTokens } = require('../utils/blingTokenStore');
 function storeTokenResponse(data) {
   tokenData.accessToken  = data.access_token;
   tokenData.refreshToken = data.refresh_token;
-  // expires_in is in seconds
-  tokenData.expiresAt = Date.now() + (data.expires_in * 1000);
+  // Usa o exp real do JWT em vez de expires_in para evitar divergência de relógio
+  tokenData.expiresAt = jwtExpiry(data.access_token)
+    || Date.now() + (data.expires_in * 1000);
   // persist encrypted to DB asynchronously (non-blocking)
   // so tokens survive process restarts and are never in plain text on disk
-  saveTokens(data).catch(err =>
+  saveTokens({
+    access_token:  data.access_token,
+    refresh_token: data.refresh_token,
+    expires_in:    Math.max(0, Math.floor((tokenData.expiresAt - Date.now()) / 1000)),
+  }).catch(err =>
     console.error('[blingService] Failed to persist tokens:', err.message)
   );
 }
