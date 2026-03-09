@@ -1,55 +1,102 @@
-// Simple in-memory user store used for authentication logic.
-// In a real application this should be replaced with a persistent
-// PostgreSQL-backed ORM (Sequelize, Prisma, etc.).
-//
-// The exported functions mirror a minimal subset of what an ORM would
-// provide so that the auth module can work without additional setup.
+// User model backed by PostgreSQL.
+// Provides find, create and save operations used by auth modules.
 
 const bcrypt = require('bcrypt');
+const { Pool } = require('pg');
 
-// internal array to hold user records
-const users = [];
+const pool = process.env.DATABASE_URL
+  ? new Pool({
+      connectionString: process.env.DATABASE_URL,
+      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+    })
+  : null;
+
+// Ensure the users table exists (idempotent, runs once on first import)
+let _tableReady = false;
+async function ensureTable() {
+  if (_tableReady || !pool) return;
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS users (
+      id                   SERIAL PRIMARY KEY,
+      email                TEXT UNIQUE NOT NULL,
+      password_hash        TEXT NOT NULL,
+      name                 TEXT,
+      role                 TEXT NOT NULL DEFAULT 'usuario' CHECK (role IN ('admin', 'usuario')),
+      must_change_password BOOLEAN NOT NULL DEFAULT TRUE,
+      created_at           TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+  // Adiciona a coluna em bancos existentes que ainda não a possuem
+  await pool.query(`
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS
+      must_change_password BOOLEAN NOT NULL DEFAULT TRUE
+  `);
+  _tableReady = true;
+}
+
+// In-memory fallback when DATABASE_URL is not set (demo/dev without DB)
+const _mem = [];
 
 module.exports = {
-  /**
-   * Find a single user by arbitrary criteria.
-   * @param {{ where: { email: string } }} query
-   */
-  async findOne(query) {
-    const { email } = query.where;
-    return users.find(u => u.email === email) || null;
+  async findOne({ where: { email } }) {
+    if (!pool) return _mem.find(u => u.email === email) || null;
+    await ensureTable();
+    const { rows } = await pool.query(
+      `SELECT id, email, password_hash AS "passwordHash", name, role,
+              must_change_password AS "mustChangePassword"
+       FROM users WHERE email = $1`,
+      [email]
+    );
+    return rows[0] || null;
   },
 
-  /**
-   * Lookup by primary key (id).
-   * @param {number} id
-   */
   async findByPk(id) {
-    return users.find(u => u.id === id) || null;
+    if (!pool) return _mem.find(u => u.id === id) || null;
+    await ensureTable();
+    const { rows } = await pool.query(
+      `SELECT id, email, password_hash AS "passwordHash", name, role,
+              must_change_password AS "mustChangePassword"
+       FROM users WHERE id = $1`,
+      [id]
+    );
+    return rows[0] || null;
   },
 
-  /**
-   * Create a new user with a hashed password.
-   * @param {{ email: string, password: string }} data
-   */
-  async create(data) {
-    const passwordHash = await bcrypt.hash(data.password, 10);
-    const user = {
-      id: users.length + 1,
-      email: data.email,
-      passwordHash,
-      totpSecret: null, // will be set during 2FA setup
-    };
-    users.push(user);
-    return user;
+  async create({ email, password, name = null, role = 'usuario', mustChangePassword = true }) {
+    const passwordHash = await bcrypt.hash(password, 10);
+    if (!pool) {
+      const user = { id: _mem.length + 1, email, passwordHash, name, role, mustChangePassword };
+      _mem.push(user);
+      return user;
+    }
+    await ensureTable();
+    const { rows } = await pool.query(
+      `INSERT INTO users (email, password_hash, name, role, must_change_password)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING id, email, password_hash AS "passwordHash", name, role,
+                 must_change_password AS "mustChangePassword"`,
+      [email, passwordHash, name, role, mustChangePassword]
+    );
+    return rows[0];
   },
 
-  /**
-   * Persist modifications to a user record (no-op for in-memory store).
-   * @param {Object} user
-   */
-  async save(user) {
-    // nothing to do since we modify the object in place
-    return user;
-  }
+  async updatePassword(id, newPassword) {
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    if (!pool) {
+      const user = _mem.find(u => u.id === id);
+      if (user) { user.passwordHash = passwordHash; user.mustChangePassword = false; }
+      return user || null;
+    }
+    await ensureTable();
+    const { rows } = await pool.query(
+      `UPDATE users
+       SET password_hash = $1, must_change_password = FALSE
+       WHERE id = $2
+       RETURNING id, email, name, role, must_change_password AS "mustChangePassword"`,
+      [passwordHash, id]
+    );
+    return rows[0] || null;
+  },
+
+  async save(user) { return user; },
 };
