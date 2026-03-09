@@ -36,10 +36,10 @@ export default function LoginPage() {
         {/* Logo */}
         <div className="flex flex-col items-center mb-8 gap-3">
           <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-purple-700 text-white text-lg font-bold shadow-sm">
-            FP
+            PF
           </div>
           <div className="text-center">
-            <h1 className="text-xl font-semibold text-slate-800">FulfillPanel</h1>
+            <h1 className="text-xl font-semibold text-slate-800">Princess Full</h1>
             <p className="text-sm text-gray-500">Painel de Expedição</p>
           </div>
         </div>
