@@ -127,27 +127,12 @@ export default function App() {
     if (authUser) loadOrders()
   }, [loadOrders, authUser])
 
-  // ── guard: aguarda verificação de sessão e exibe login se não autenticado ──
-  if (authLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <svg className="animate-spin h-8 w-8 text-purple-600" viewBox="0 0 24 24" fill="none">
-          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
-        </svg>
-      </div>
-    )
-  }
-
-  if (!authUser) return <LoginPage />
-
-  if (authUser.mustChangePassword) return <ChangePasswordPage />
+  // ── Todos os useCallback ANTES dos returns condicionais (Rules of Hooks) ──
 
   // Sync Bling
   const handleSyncBling = useCallback(async () => {
     setSyncing(true)
     try {
-      // Hardcoded shopId for demo - in production, get from user context
       const result = await apiFetch('/bling/sync?shop_ids=204794092')
       console.log('Bling sync result:', result)
       alert(`Sincronização completa: ${result.synced} pedidos (páginas ${result.pagesFetched}/${result.maxPages})`)
@@ -159,6 +144,7 @@ export default function App() {
       setSyncing(false)
     }
   }, [loadOrders])
+
   // Update order
   const handleUpdateOrder = useCallback(async (orderId, updateData) => {
     try {
@@ -166,16 +152,16 @@ export default function App() {
         method: 'PATCH',
         body: JSON.stringify(updateData),
       });
-      // Reload the order details
       if (selectedOrder && selectedOrder.id === orderId) {
         const updated = await apiFetch(`/orders/${orderId}`);
         setSelectedOrder(updated);
       }
-      await loadOrders(); // Refresh list
+      await loadOrders();
     } catch (err) {
       throw new Error(err.message);
     }
   }, [selectedOrder, loadOrders]);
+
   // View order detail
   const handleView = useCallback(async (id) => {
     setDetailLoading(true)
@@ -183,7 +169,6 @@ export default function App() {
       const order = await apiFetch(`/orders/${id}`)
       setSelectedOrder(order)
     } catch (err) {
-      // fallback: find in already-loaded list
       const found = orders.find(o => o.id === id || o.dbId === id)
       if (found) setSelectedOrder(found)
       else alert(`Erro ao carregar ordem: ${err.message}`)
@@ -192,12 +177,12 @@ export default function App() {
     }
   }, [orders])
 
-  // Print label — abre o PDF salvo ou a página do pedido no Bling (filtrado pelo ID)
+  // Print label — abre o PDF salvo ou a página do pedido no Bling
   const handlePrintLabel = useCallback(() => {
     if (selectedOrder?.labelUrl) {
       window.open(selectedOrder.labelUrl, '_blank', 'noopener,noreferrer')
     } else {
-      const blingId = selectedOrder?.id   // id já é o bling_order_id
+      const blingId = selectedOrder?.id
       const url = blingId
         ? `https://www.bling.com.br/notas.fiscais.php#edit/${blingId}`
         : 'https://www.bling.com.br/notas.fiscais.php'
@@ -222,7 +207,6 @@ export default function App() {
       throw new Error(msg)
     }
     const data = JSON.parse(text)
-    // Atualizar o pedido selecionado com a nova URL
     setSelectedOrder(prev => ({ ...prev, labelUrl: data.labelUrl }))
     return data.labelUrl
   }, [])
@@ -252,6 +236,22 @@ export default function App() {
     setSelectedOrder(null)
     setCurrentPage(key)
   }, [])
+
+  // ── guard: aguarda verificação de sessão e exibe login se não autenticado ──
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <svg className="animate-spin h-8 w-8 text-purple-600" viewBox="0 0 24 24" fill="none">
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+        </svg>
+      </div>
+    )
+  }
+
+  if (!authUser) return <LoginPage />
+
+  if (authUser.mustChangePassword) return <ChangePasswordPage />
 
   // ── Non-orders pages ─────────────────────────────────────────────────────
   if (currentPage !== 'orders') {
